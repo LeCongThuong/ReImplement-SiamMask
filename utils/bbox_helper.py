@@ -1,0 +1,47 @@
+import numpy as np
+from _collections import namedtuple
+
+Corner = namedtuple('Corner', 'x1 y1 x2 y2')
+BBox = Corner
+Center = namedtuple('Center', 'x y w h')
+
+
+def corner2center(corner):
+    """
+    :param corner: Corner or np.array 4*N
+    :return: Center or 4p.array N
+    """
+    if isinstance(corner, Corner):
+        x1, y1, x2, y2 = corner
+        return Center((x1 + x2) * 0.5, (y1 + y2) * 0.5, abs(x1 - x2), abs(y1 - y2))
+    else:
+        x1, y1, x2, y2 = corner[0], corner[1], corner[2], corner[3]
+        x = (x1 + x2) * 0.5
+        y = (y1 + y2) * 0.5
+        w = x2 - x1
+        h = y2 - y1
+        return x, y, w, h
+
+
+def center2corner(center):
+    """
+    :param center: Center or np.array 2*N
+    :return: corner or np.array 4*N
+    """
+    if isinstance(center, Center):
+        x, y, w, h = center
+        return Corner(x - w * 0.5, y - h * 0.5, x + w * 0.5, y + h * 0.5)
+    else:
+        x, y, w, h = center[0], center[1], center[2], center[3]
+        x1 = x - w * 0.5
+        y1 = y - h * 0.5
+        x2 = x + w * 0.5
+        y2 = y + h * 0.5
+        return x1, y1, x2, y2
+
+
+def cxy_wh_2_rect(pos, sz):
+    return np.array([pos[0] - sz[0] / 2, pos[1] - sz[1] / 2, sz[0], sz[1]])
+
+
+def get_axis_aligned_bbox(region):
