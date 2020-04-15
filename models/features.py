@@ -38,7 +38,7 @@ class MultiStageFeature(Features):
         self.layers = []
         self.train_num = -1
         self.change_point = []
-        self.train_num = []
+        self.train_nums = []
 
     def unfix(self, ratio=0.0):
         if self.train_num == -1:
