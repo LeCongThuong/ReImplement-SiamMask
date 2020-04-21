@@ -1,5 +1,6 @@
 import torch.nn as nn
 
+
 class Mask(nn.Module):
     def __init__(self):
         super(Mask, self).__init__()

@@ -13,7 +13,7 @@ class Features(Module):
         super(Features, self).__init__()
         self.feature_size = -1
 
-    def forward(self,x ):
+    def forward(self, x):
         raise NotImplementedError
 
     def param_group(self, start_lr, feature_mult=1):
@@ -45,7 +45,7 @@ class MultiStageFeature(Features):
             self.train_num = 0
             self.unlock()
             self.eval()
-
+        # have no idea what this below code does
         for p, t in reversed(list(zip(self.change_point, self.train_nums))):
             if ratio >= p:
                 if self.train_num != t:

@@ -46,6 +46,9 @@ class Anchors:
                     count += 1
 
     def generate_all_anchors(self, im_c, size):
+        # Perhaps im_c: (center_x, center_y), size : (w, h) , self.anchor: (num_anchors, 4)
+        # Note: w, h is relative size in feature map. To map into original image size, you have to multiply with stride
+
         if self.image_center == im_c and self.size == size:
             return False
         self.image_center = im_c
