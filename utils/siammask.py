@@ -37,7 +37,51 @@ class SiamMask(nn.Module):
     def _add_rpn_loss(self, label_cls, label_loc, label_loc_weight, label_mask, label_mask_weight, rpn_pred_cls, rpn_pred_loc, rpn_pred_mask):
         rpn_loss_cls = select_cross_entropy_loss(rpn_pred_cls, label_cls)
         rpn_loss_loc = weight_l1_loss(rpn_pred_loc, label_loc, label_loc_weight)
-        rpn_loss_mask, iou_m, iou_5, iou_7 = select_mask_logistic
+        rpn_loss_mask, iou_m, iou_5, iou_7 = select_mask_logistic_loss(rpn_pred_mask, label_mask, label_mask_weight)
+        return rpn_loss_cls, rpn_loss_loc, rpn_loss_mask, iou_m, iou_5, iou_7
+
+    def softmax(self, cls):
+        b, a2, h, w = cls.size()
+        cls = cls.view(b, 2, a2//2, h, w)
+        cls = cls.permute(0, 1, 3, 4, 1).contiguous()
+        cls = F.log_softmax(cls, dim = 4)
+        return cls
+
+
+def select_mask_logistic_loss(p_m,mask,  weight, o_sz=63, g_sz=127):
+    weight = weight.view(-1)
+    pos = Variable(weight.data.eq(1).nonzero().squeeze())
+    if pos.nelement() == 0: return p_m.sum() * 0, p_m.sum(), p_m.sum() * 0, p_m.sum() * 0
+    p_m = p_m.permute(0, 2, 3, 1).contiguous().view(-1, 1, o_sz, o_sz)
+    p_m = nn.UpsamplingBilinear2d(size=[g_sz, g_sz])(p_m)
+    p_m = p_m.view(-1, g_sz * g_sz)
+
+    mask_uf = F.unfold(mask, (g_sz, g_sz), padding=32, stride= 8)
+    mask_uf = torch.transpose(mask_uf, 1, 2).contiguous().view(-1, g_sz * g_sz)
+    mask_uf = torch.index_select(mask_uf, 0, pos)
+    loss = F.soft_margin_loss((p_m, mask_uf))
+    iou_m, iou_5, iou_7 = iou_measure(p_m, mask_uf)
+    return loss, iou_5, iou_7
+
+
+def iou_measure(pred, label):
+    pred = pred.ge(0)
+    mask_sum = pred.eq(1).add(label.eq(1))
+    intxn = torch.sum(mask_sum == 2, dim=1).float()
+    union= torch.sum(mask_sum > 0, dim=1).float()
+    iou = intxn / union
+    return torch.mean(iou), (torch.sum(iou > 0.5).float() / iou.shape[0]), (torch.sum(iou > 0.7).float() / iou.shape[0])
+
+
+def run(self, template, search, softmax=False):
+    template_feature = self.feature_extractor(template)
+    search_feature = self.feature_extractor(search)
+    rpn_pred_cls, rpn_pred_loc = self.rpn(template_feature, search_feature)
+    rpn_pred_mask = self.mask(template_feature, search_feature)
+
+    if softmax:
+        rpn_pred_cls = self.softmax(rpn_pred_cls)
+    return rpn_pred_cls, rpn_pred_loc, rpn_pred_mask, template_feature, search_feature
 
 
 def weight_l1_loss(pred_loc, label_loc, loss_weight):
